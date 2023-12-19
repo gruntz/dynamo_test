@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hello World Frontend</title>
+</head>
+<body>
+    <h1>Hello World Frontend</h1>
+    <button onclick="fetchHello()">Get Hello</button>
+    <p id="helloText"></p>
+
+    <script>
+        async function fetchHello() {
+            try {
+                const response = await fetch('http://52.147.195.54:5000/api/Hello');
+               
+                const data = await response.text();
+                document.getElementById('helloText').innerText = data;
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+    </script>
+<!-- const response = await fetch('http://52.147.195.54:5000/api/HelloWorld'); -->
+</body>
+</html>

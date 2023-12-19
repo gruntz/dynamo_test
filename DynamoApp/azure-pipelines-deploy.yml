@@ -1,0 +1,96 @@
+trigger:
+- none
+
+pool:
+  name: "dynamo_azure_vm_worker"
+
+variables:
+  websiteName: "dynamo"
+
+resources:
+  pipelines:
+    - pipeline: "BuildPipeline" # Alias of the build pipeline
+      project: "dynamo" # From top-right
+      source: "Build Pipeline" # Actual name of the buld pipeline
+      branch: "main"
+
+stages:
+  - stage: Deploy
+    displayName: "Deploy Website"
+    jobs:
+    - deployment: DeployWebsite
+      displayName: "Deploy Website"
+      environment: "dynamo-Server.dynamo-Server"
+      strategy:
+       runOnce:
+         deploy:
+           steps:
+
+            # Checkout source ( so we can get the index.html):
+            - checkout: none # Don`t checkout anything
+            
+            # Set .NET Version:
+            - task: UseDotNet@2
+              name: "Set_dot_net_version"
+              displayName: 'Set .Net Version'
+              inputs:
+                packageType: sdk
+                version: 8.0.100
+            
+            # Set which pipeline and which artifact to copy:
+            - download: "BuildPipeline" # from "pipeline" resource above.
+              name: "DownloadBuildArtifacts"
+              displayName: "Download Build Artifacts"
+              artifact: "DynamoArtifact"
+            
+            # Stop webserver:
+            - task: IISWebAppManagementOnMachineGroup@0
+              name: "StopIIS"
+              displayName: "Stop IIS"
+              inputs:
+                IISDeploymentType: 'IISWebsite'
+                ActionIISWebsite: 'StopWebsite'
+                StartStopWebsiteName: '${{variables.websiteName}}'
+
+            # Copy Artifacts:
+            - task: IISWebAppDeploymentOnMachineGroup@0
+              name: "CopyBackendToServer"
+              displayName: "Copy Artifacts To Server"
+              inputs:
+                WebSiteName: '${{variables.websiteName}}'
+                Package: '$(Pipeline.Workspace)\BuildPipeline\DynamoArtifact'
+                TakeAppOfflineFlag: true
+            
+            # Start webserver:
+            - task: IISWebAppManagementOnMachineGroup@0
+              name: "StartIIS"
+              displayName: "Start IIS"
+              inputs:
+                IISDeploymentType: 'IISWebsite'
+                ActionIISWebsite: 'StartWebsite'
+                StartStopWebsiteName: '${{variables.websiteName}}'
+     
+            - powershell: |
+                Start-Process -FilePath "C:\inetpub\wwwroot\backend\DynamoApp.exe" -Wait
+              displayName: 'Run Windows Program'
+
+            # - script: |
+            #     echo "Pipeline execution completed, but the program is still running."
+            #   displayName: 'Pipeline completion message'
+
+            # - task: PowerShell@2
+            #   name: "Create_and_start_service"
+            #   displayName: "Create and start service"
+            #   inputs:
+            #     targetType: 'inline'
+            #     script: |
+            #       # Stop and Delete previous service:
+            #       sc.exe stop dynamoService
+            #       sc.exe delete dynamoService
+            #       # Create the service:
+            #       $cmd = "C:\inetpub\wwwroot\s\HelloWorldApi.exe --urls http://*:5000 > C:\service.log"
+            #       $name = "dynamoService"
+            #       $desc = "Dynamo backend service"
+            #       sc.exe create $name binPath="$cmd" start=auto DisplayName="$name - $desc"
+            #       # Start the service
+            #       sc.exe start $name

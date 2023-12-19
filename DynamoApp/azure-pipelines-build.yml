@@ -1,0 +1,63 @@
+trigger:
+- none
+
+pool:
+  name: "dynamo_azure_vm_worker"
+
+variables:
+  buildConfiguration: "Release"
+  solutionFile: "**/HelloWorldApi.sln"
+  projectFile: "**/HelloWorldApi.csproj"
+
+stages:
+  - stage: Compile
+    displayName: "Compile Website"
+    jobs:
+    - job: Compile
+      steps:
+
+      # Checkout source ( so we can get the index.html):
+      - checkout: self
+      
+      # Copy the HTML file to the staging directory:
+      - powershell: |
+          # Copy the specific file to the artifact staging directory
+          Copy-Item -Path $(System.DefaultWorkingDirectory)\index.html -Destination $(Build.ArtifactStagingDirectory)
+        name: "Copy_index_html"
+        displayName: "Copy index.html"
+
+      # Install Dotnet:
+      - task: DotNetCoreInstaller@0
+        name: "Install_dot_net"
+        displayName: 'Install .Net'
+        inputs:
+          packageType: 'sdk'
+          version: '8.0.100'
+
+      # Set Dotnet version:
+      - task: UseDotNet@2
+        name: "Set_dot_net_version"
+        displayName: 'Set .Net Version'
+        inputs:
+          packageType: sdk
+          version: 8.0.100
+      
+      # Copmile code:
+      - script: |
+          dotnet restore $(System.DefaultWorkingDirectory)\DynamoApp.csproj
+        displayName: '.NET - Restore'
+      - script: |
+          dotnet build $(System.DefaultWorkingDirectory)\DynamoApp.csproj --configuration $(buildConfiguration)
+        displayName: '.NET - Build'
+      - script: |
+          dotnet publish $(System.DefaultWorkingDirectory)\DynamoApp.csproj --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)\backend --runtime win-x64
+        displayName: '.NET - Publish'
+
+      # Copy artifacts to the build container:
+      - task: PublishBuildArtifacts@1
+        name: "PublishBACKENDArtifacts"
+        displayName: "Publish BACKEND Artifacts"
+        inputs:
+          PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+          ArtifactName: 'DynamoArtifact'
+          publishLocation: 'Container'
