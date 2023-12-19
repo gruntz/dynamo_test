@@ -1,10 +1,10 @@
 # Simple devops project for Dynamo
-
+```
 /
 ├── DynamoApp  - The frontend, backend and piplelines;
 ├── terraform  - Terraform scripts to bring the env up;
 └── READEME.md - This file
-
+```
 1) Terraform is used to bring two VMs ( Server and Worker) up. It also installs DotNet and IIS web server.
 
 2) DynamoApp is a simple app that returns Hello Dynamo.
